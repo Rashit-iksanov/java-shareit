@@ -14,4 +14,6 @@ public interface ItemService {
     List<ItemDto> findAllByOwnerId(Long userId);
 
     List<ItemDto> search(String text);
+
+    void delete(Long userId, Long itemId);
 }

@@ -2,7 +2,9 @@ package ru.practicum.shareit.item;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
@@ -21,8 +23,17 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemDto create(ItemDto dto, Long userId) {
+        if (dto.getName() == null || dto.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Название не может быть пустым");
+        }
+        if (dto.getDescription() == null || dto.getDescription().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Описание не может быть пустым");
+        }
+        if (dto.getAvailable() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Статус доступности должен быть указан");
+        }
         User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
 
         Item item = ItemMapper.toItem(dto);
         item.setOwner(owner);
@@ -35,16 +46,21 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemDto update(ItemDto dto, Long userId, Long itemId) {
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("Вещь не найдена"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Вещь не найдена"));
 
-        // Проверяю, что редактировать может только владелец
-        if (!item.getOwner().getId().equals(userId)) {
-            throw new RuntimeException("Пользователь не является владельцем вещи");
+        if (item.getOwner() == null || !item.getOwner().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Пользователь не является владельцем вещи");
         }
 
-        if (dto.getName() != null) item.setName(dto.getName());
-        if (dto.getDescription() != null) item.setDescription(dto.getDescription());
-        if (dto.getAvailable() != null) item.setAvailable(dto.getAvailable());
+        if (dto.getName() != null && !dto.getName().isBlank()) {
+            item.setName(dto.getName());
+        }
+        if (dto.getDescription() != null && !dto.getDescription().isBlank()) {
+            item.setDescription(dto.getDescription());
+        }
+        if (dto.getAvailable() != null) {
+            item.setAvailable(dto.getAvailable());
+        }
 
         Item updatedItem = itemRepository.save(item);
         log.info("Обновлена вещь с id={}", itemId);
@@ -54,7 +70,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public ItemDto findById(Long itemId) {
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new RuntimeException("Вещь не найдена"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Вещь не найдена"));
         return ItemMapper.toItemDto(item);
     }
 
@@ -78,5 +94,18 @@ public class ItemServiceImpl implements ItemService {
                         item.getDescription().toLowerCase().contains(lowerText))
                 .map(ItemMapper::toItemDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void delete(Long userId, Long itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Вещь не найдена"));
+
+        if (!item.getOwner().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Пользователь не является владельцем вещи");
+        }
+
+        itemRepository.deleteById(itemId);
+        log.info("Вещь с id={} успешно удалена пользователем с id={}", itemId, userId);
     }
 }

@@ -41,4 +41,9 @@ public class InMemoryItemRepository implements ItemRepository {
     public Collection<Item> findAll() {
         return items.values();
     }
+
+    @Override
+    public void deleteById(Long id) {
+        items.remove(id);
+    }
 }

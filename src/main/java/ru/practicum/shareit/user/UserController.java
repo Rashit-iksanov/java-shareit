@@ -1,9 +1,11 @@
 package ru.practicum.shareit.user;
 
-import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,10 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ru.practicum.shareit.user.dto.UserDto;
-import ru.practicum.shareit.user.mapper.UserMapper;
 
 import java.util.Collection;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -27,13 +27,13 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserDto create(@Valid @RequestBody UserDto dto) {
+    public UserDto create(@Validated(OnCreate.class) @RequestBody UserDto dto) {
         log.info("Создание пользователя: {}", dto.getName());
         return userService.create(dto);
     }
 
     @PatchMapping("/{userId}")
-    public UserDto update(@PathVariable Long userId, @Valid @RequestBody UserDto dto) {
+    public UserDto update(@PathVariable Long userId, @Validated(OnUpdate.class) @RequestBody UserDto dto) {
         log.info("Обновление пользователя с id={}", userId);
         return userService.update(dto, userId);
     }
@@ -48,5 +48,12 @@ public class UserController {
     public Collection<UserDto> findAll() {
         log.info("Получение списка всех пользователей");
         return userService.findAll();
+    }
+
+    @DeleteMapping("/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long userId) {
+        log.info("Запрос на удаление пользователя с id={}", userId);
+        userService.delete(userId);
     }
 }

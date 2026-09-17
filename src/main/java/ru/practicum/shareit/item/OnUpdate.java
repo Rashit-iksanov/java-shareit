@@ -1,4 +1,4 @@
 package ru.practicum.shareit.item;
 
-public class UserControllerTest {
+public interface OnUpdate {
 }

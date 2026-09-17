@@ -37,4 +37,9 @@ public class InMemoryUserRepository implements UserRepository {
         return users.values().stream()
                 .anyMatch(u -> u.getEmail().equalsIgnoreCase(email));
     }
+
+    @Override
+    public void deleteById(Long id) {
+        users.remove(id);
+    }
 }

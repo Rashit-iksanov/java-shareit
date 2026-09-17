@@ -1,9 +1,11 @@
 package ru.practicum.shareit.item;
 
-import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,7 +29,9 @@ public class ItemController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ItemDto create(@RequestHeader("X-Sharer-User-Id") Long userId, @Valid @RequestBody ItemDto dto) {
+    public ItemDto create(@RequestHeader("X-Sharer-User-Id") Long userId,
+                          @Validated(OnCreate.class)
+                          @RequestBody ItemDto dto) {
         log.info("Создание вещи пользователем с id={}", userId);
         return itemService.create(dto, userId);
     }
@@ -35,7 +39,7 @@ public class ItemController {
     @PatchMapping("/{itemId}")
     public ItemDto update(@RequestHeader("X-Sharer-User-Id") Long userId,
                           @PathVariable Long itemId,
-                          @Valid @RequestBody ItemDto dto) {
+                          @Validated(OnUpdate.class) @RequestBody ItemDto dto) {
         log.info("Обновление вещи с id={} пользователем с id={}", itemId, userId);
         return itemService.update(dto, userId, itemId);
     }
@@ -53,8 +57,16 @@ public class ItemController {
     }
 
     @GetMapping("/search")
-    public List<ItemDto> search(@RequestParam String text) {
+    public List<ItemDto> search(@RequestParam(required = false) String text) {
         log.info("Поиск вещей по тексту: {}", text);
         return itemService.search(text);
+    }
+
+    @DeleteMapping("/{itemId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@RequestHeader("X-Sharer-User-Id") Long userId,
+                       @PathVariable Long itemId) {
+        log.info("Запрос на удаление вещи с id={} пользователем с id={}", itemId, userId);
+        itemService.delete(userId, itemId);
     }
 }

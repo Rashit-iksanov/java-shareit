@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ru.practicum.shareit.user.OnCreate;
 
 @Data
 @NoArgsConstructor
@@ -12,10 +13,10 @@ import lombok.NoArgsConstructor;
 public class UserDto {
     private Long id;
 
-    @NotBlank(message = "Имя не может быть пустым")
+    @NotBlank(message = "Имя не может быть пустым", groups = OnCreate.class)
     private String name;
 
-    @NotBlank(message = "Email не может быть пустым")
-    @Email(message = "Некорректный формат email")
+    @NotBlank(message = "Email не может быть пустым", groups = OnCreate.class)
+    @Email(message = "Некорректный формат email", groups = OnCreate.class)
     private String email;
 }
