@@ -6,8 +6,11 @@ import java.util.Collection;
 
 public interface UserService {
     UserDto create(UserDto dto);
+
     UserDto update(UserDto dto, Long userId);
+
     UserDto findById(Long userId);
+
     Collection<UserDto> findAll();
 
     void delete(Long userId);

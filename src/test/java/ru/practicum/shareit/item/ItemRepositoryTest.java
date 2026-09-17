@@ -9,7 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class InMemoryItemRepositoryTest {
+class ItemRepositoryTest {
     private InMemoryItemRepository repository;
     private User owner;
 
