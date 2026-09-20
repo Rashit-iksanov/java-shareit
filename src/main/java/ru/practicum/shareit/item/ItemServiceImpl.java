@@ -23,19 +23,12 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemDto create(ItemDto dto, Long userId) {
-        if (dto.getName() == null || dto.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Название не может быть пустым");
-        }
-        if (dto.getDescription() == null || dto.getDescription().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Описание не может быть пустым");
-        }
-        if (dto.getAvailable() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Статус доступности должен быть указан");
-        }
+
         User owner = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
 
         Item item = ItemMapper.toItem(dto);
+        item.setId(null);
         item.setOwner(owner);
 
         Item savedItem = itemRepository.save(item);
@@ -89,7 +82,7 @@ public class ItemServiceImpl implements ItemService {
         String lowerText = text.toLowerCase();
 
         return itemRepository.findAll().stream()
-                .filter(Item::getAvailable)
+                .filter(item -> Boolean.TRUE.equals(item.getAvailable()))
                 .filter(item -> item.getName().toLowerCase().contains(lowerText) ||
                         item.getDescription().toLowerCase().contains(lowerText))
                 .map(ItemMapper::toItemDto)

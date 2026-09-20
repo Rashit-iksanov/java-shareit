@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import ru.practicum.shareit.user.OnCreate;
+import ru.practicum.shareit.validation.OnCreate;
 
 @Data
 @NoArgsConstructor

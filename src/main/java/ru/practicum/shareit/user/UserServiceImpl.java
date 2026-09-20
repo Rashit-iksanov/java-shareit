@@ -19,17 +19,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto create(UserDto dto) {
-        if (dto.getName() == null || dto.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Имя не может быть пустым");
-        }
-        if (dto.getEmail() == null || dto.getEmail().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email не может быть пустым");
-        }
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с таким email уже существует");
         }
 
         User user = UserMapper.toUser(dto);
+        user.setId(null);
         User savedUser = userRepository.save(user);
         log.info("Создан новый пользователь с id={}", savedUser.getId());
         return UserMapper.toUserDto(savedUser);
