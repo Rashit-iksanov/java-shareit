@@ -76,8 +76,19 @@ public class ItemServiceImpl implements ItemService {
     public ItemDto findById(Long itemId) {
         Item item = itemRepository.findById(itemId).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Вещь не найдена"));
+
         ItemDto dto = ItemMapper.toItemDto(item);
-        enrichItemWithBookingsAndComments(dto, item.getId());
+        dto.setLastBooking(null);
+        dto.setNextBooking(null);
+
+        List<Comment> comments = commentRepository.findAllByItemIdOrderByCreatedDesc(itemId);
+        dto.setComments(comments.stream().map(c -> CommentDto.builder()
+                .id(c.getId())
+                .text(c.getText())
+                .authorName(c.getAuthor().getName())
+                .created(c.getCreated())
+                .build()).collect(Collectors.toList()));
+
         return dto;
     }
 
