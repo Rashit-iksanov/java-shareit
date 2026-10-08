@@ -16,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonInclude
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ItemDto {
     private Long id;
 

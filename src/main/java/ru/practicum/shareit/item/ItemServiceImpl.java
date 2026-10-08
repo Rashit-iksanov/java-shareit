@@ -2,6 +2,7 @@ package ru.practicum.shareit.item;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import ru.practicum.shareit.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -93,19 +95,44 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<ItemDto> findAllByOwnerId(Long userId) {
-        return itemRepository.findAllByOwnerId(userId).stream()
-                .map(item -> {
-                    ItemDto dto = ItemMapper.toItemDto(item);
-                    enrichItemWithBookingsAndComments(dto, item.getId());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        List<Item> items = itemRepository.findAllByOwnerId(userId);
+        if (items.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> itemIds = items.stream().map(Item::getId).toList();
+
+        // Сделал всего 2 запроса к БД для всех вещей сразу (решение проблемы N+1)
+        List<Booking> bookings = bookingRepository.findAllByItemIdInAndStatus(
+                itemIds, BookingStatus.APPROVED, Sort.by(Sort.Direction.ASC, "start"));
+        List<Comment> comments = commentRepository.findAllByItemIdIn(itemIds);
+
+        Map<Long, List<Booking>> bookingsByItem = bookings.stream()
+                .collect(Collectors.groupingBy(b -> b.getItem().getId()));
+        Map<Long, List<Comment>> commentsByItem = comments.stream()
+                .collect(Collectors.groupingBy(c -> c.getItem().getId()));
+
+        return items.stream().map(item -> {
+            ItemDto dto = ItemMapper.toItemDto(item);
+
+            enrichItemWithBookingsFromList(dto, bookingsByItem.getOrDefault(item.getId(), List.of()));
+
+            List<Comment> itemComments = commentsByItem.getOrDefault(item.getId(), List.of());
+            dto.setComments(itemComments.stream().map(c -> CommentDto.builder()
+                    .id(c.getId())
+                    .text(c.getText())
+                    .authorName(c.getAuthor().getName())
+                    .created(c.getCreated())
+                    .build()).collect(Collectors.toList()));
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<ItemDto> search(String text) {
         if (text == null || text.isBlank()) {
             return List.of();
@@ -163,23 +190,11 @@ public class ItemServiceImpl implements ItemService {
                 .build();
     }
 
-    private void enrichItemWithBookingsAndComments(ItemDto dto, Long itemId) {
-        enrichItemWithBookings(dto, itemId);
-        List<Comment> comments = commentRepository.findAllByItemIdOrderByCreatedDesc(itemId);
-        dto.setComments(comments.stream().map(c -> CommentDto.builder()
-                .id(c.getId())
-                .text(c.getText())
-                .authorName(c.getAuthor().getName())
-                .created(c.getCreated())
-                .build()).collect(Collectors.toList()));
-    }
-
-    private void enrichItemWithBookings(ItemDto dto, Long itemId) {
+    private void enrichItemWithBookingsFromList(ItemDto dto, List<Booking> bookings) {
+        if (bookings == null || bookings.isEmpty()) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
-        List<Booking> bookings = bookingRepository.findAllByItemIdAndStatus(itemId, BookingStatus.APPROVED,
-                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC,
-                        "start"));
-
         Booking last = null;
         Booking next = null;
 
