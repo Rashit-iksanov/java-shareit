@@ -80,13 +80,8 @@ public class ItemServiceImpl implements ItemService {
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Вещь не найдена"));
 
         ItemDto dto = ItemMapper.toItemDto(item);
-        List<Booking> bookings = bookingRepository.findAllByItemIdAndStatus(
-                itemId,
-                BookingStatus.APPROVED,
-                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "start")
-        );
-
-        enrichItemWithBookingsFromList(dto, bookings);
+        dto.setLastBooking(null);
+        dto.setNextBooking(null);
 
         List<Comment> comments = commentRepository.findAllByItemIdOrderByCreatedDesc(itemId);
         dto.setComments(comments.stream().map(c -> CommentDto.builder()
