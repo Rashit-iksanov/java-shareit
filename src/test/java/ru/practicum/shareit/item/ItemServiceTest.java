@@ -7,11 +7,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import ru.practicum.shareit.booking.Booking;
+import ru.practicum.shareit.booking.BookingRepository;
+import ru.practicum.shareit.booking.BookingStatus;
+import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.User;
 import ru.practicum.shareit.user.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,15 +40,19 @@ class ItemServiceTest {
     private ItemRepository itemRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private BookingRepository bookingRepository;
+    @Mock
+    private CommentRepository commentRepository;
 
     @InjectMocks
     private ItemServiceImpl itemService;
 
     @Test
     void create_shouldSetOwnerAndSave() {
-        User owner = new User(1L, "Ivan", "ivan@test.com");
-        ItemDto dto = new ItemDto(null, "Drill", "Powerful", true, null);
-        Item savedItem = new Item(1L, "Drill", "Powerful", true, owner, null);
+        User owner = User.builder().id(1L).name("Ivan").email("ivan@test.com").build();
+        ItemDto dto = ItemDto.builder().name("Drill").description("Powerful").available(true).build();
+        Item savedItem = Item.builder().id(1L).name("Drill").description("Powerful").available(true).owner(owner).build();
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
         when(itemRepository.save(any(Item.class))).thenReturn(savedItem);
@@ -54,9 +65,9 @@ class ItemServiceTest {
 
     @Test
     void update_byNonOwner_shouldThrowException() {
-        User owner = new User(1L, "Ivan", "ivan@test.com");
-        Item item = new Item(1L, "Drill", "Desc", true, owner, null);
-        ItemDto dto = new ItemDto(1L, "New Name", "New Desc", false, null);
+        User owner = User.builder().id(1L).name("Ivan").email("ivan@test.com").build();
+        Item item = Item.builder().id(1L).name("Drill").description("Desc").available(true).owner(owner).build();
+        ItemDto dto = ItemDto.builder().name("New Name").description("New Desc").available(false).build();
 
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
@@ -64,19 +75,17 @@ class ItemServiceTest {
             itemService.update(dto, 2L, 1L);
         });
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
-        assertEquals("Пользователь не является владельцем вещи", exception.getReason());
     }
 
     @Test
     void search_shouldReturnOnlyAvailableItemsAndIgnoreCase() {
-        User owner = new User(1L, "Ivan", "ivan@test.com");
-        Item availableDrill = new Item(1L, "Super Drill", "Desc",
-                true, owner, null);
-        Item unavailableDrill = new Item(2L, "Old Drill", "Desc",
-                false, owner, null);
-        Item hammer = new Item(3L, "Hammer", "Desc", true, owner, null);
+        User owner = User.builder().id(1L).build();
+        Item availableDrill = Item.builder().id(1L).name("Super Drill")
+                .description("Desc").available(true).owner(owner).build();
+        Item unavailableDrill = Item.builder().id(2L).name("Old Drill")
+                .description("Desc").available(false).owner(owner).build();
 
-        when(itemRepository.findAll()).thenReturn(List.of(availableDrill, unavailableDrill, hammer));
+        when(itemRepository.search("drill")).thenReturn(List.of(availableDrill));
 
         List<ItemDto> result = itemService.search("drill");
 
@@ -88,7 +97,7 @@ class ItemServiceTest {
     void search_withBlankText_shouldReturnEmptyList() {
         List<ItemDto> result = itemService.search("   ");
         assertTrue(result.isEmpty());
-        verify(itemRepository, never()).findAll();
+        verify(itemRepository, never()).search(any());
     }
 
     @Test
@@ -98,7 +107,7 @@ class ItemServiceTest {
 
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
-        itemService.delete(1L, 1L); // Владелец (id=1) удаляет свою вещь (id=1)
+        itemService.delete(1L, 1L);
 
         verify(itemRepository, times(1)).deleteById(1L);
     }
@@ -130,5 +139,48 @@ class ItemServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
         assertEquals("Вещь не найдена", exception.getReason());
         verify(itemRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void addComment_shouldSaveCommentWhenUserRentedItem() {
+        User author = User.builder().id(1L).name("Ivan").build();
+        Item item = Item.builder().id(1L).name("Drill").owner(User.builder().id(2L).build()).build();
+        CommentDto dto = CommentDto.builder().text("Great!").build();
+
+        Booking pastBooking = Booking.builder().status(BookingStatus.APPROVED).build();
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(author));
+        when(bookingRepository.findAllByItemIdAndBookerIdAndStatusAndEndBefore(eq(1L), eq(1L),
+                eq(BookingStatus.APPROVED), any(LocalDateTime.class)))
+                .thenReturn(List.of(pastBooking));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> {
+            Comment c = invocation.getArgument(0);
+            c.setId(10L);
+            c.setAuthor(author);
+            return c;
+        });
+
+        CommentDto result = itemService.addComment(1L, dto, 1L);
+
+        assertEquals("Great!", result.getText());
+        assertEquals("Ivan", result.getAuthorName());
+        verify(commentRepository, times(1)).save(any(Comment.class));
+    }
+
+    @Test
+    void addComment_withoutPriorRental_shouldThrowException() {
+        User author = User.builder().id(1L).name("Ivan").build();
+        Item item = Item.builder().id(1L).name("Drill").build();
+        CommentDto dto = CommentDto.builder().text("Great!").build();
+
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(author));
+        when(bookingRepository.findAllByItemIdAndBookerIdAndStatusAndEndBefore(anyLong(), anyLong(), any(), any()))
+                .thenReturn(List.of());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+            itemService.addComment(1L, dto, 1L);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
     }
 }

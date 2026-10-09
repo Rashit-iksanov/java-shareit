@@ -1,7 +1,9 @@
 package ru.practicum.shareit.item;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.User;
 
@@ -9,27 +11,50 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@DataJpaTest
 class ItemRepositoryTest {
-    private InMemoryItemRepository repository;
-    private User owner;
 
-    @BeforeEach
-    void setUp() {
-        repository = new InMemoryItemRepository();
-        owner = new User(1L, "Owner", "owner@test.com");
-    }
+    @Autowired
+    private TestEntityManager entityManager;
+
+    @Autowired
+    private ItemRepository itemRepository;
 
     @Test
     void findAllByOwnerId_shouldReturnOnlyOwnerItems() {
-        Item item1 = new Item(1L, "Drill", "Desc", true, owner, null);
-        Item item2 = new Item(2L, "Hammer", "Desc", true, new User(2L,
-                "Other", "other@test.com"), null);
+        User owner = entityManager.persist(User.builder().name("Owner").email("owner@test.com").build());
+        User other = entityManager.persist(User.builder().name("Other").email("other@test.com").build());
+        entityManager.flush();
 
-        repository.save(item1);
-        repository.save(item2);
+        Item item1 = Item.builder().name("Drill").description("Desc").available(true).owner(owner).build();
+        Item item2 = Item.builder().name("Hammer").description("Desc").available(true).owner(other).build();
 
-        List<Item> result = repository.findAllByOwnerId(1L);
+        entityManager.persist(item1);
+        entityManager.persist(item2);
+        entityManager.flush();
+
+        List<Item> result = itemRepository.findAllByOwnerId(owner.getId());
         assertEquals(1, result.size());
         assertEquals("Drill", result.get(0).getName());
+    }
+
+    @Test
+    void search_shouldReturnAvailableItemsMatchingTextIgnoreCase() {
+        User owner = entityManager.persist(User.builder().name("Owner").email("owner@test.com").build());
+        entityManager.flush();
+
+        Item availableDrill = Item.builder().name("Super Drill").description("Powerful").available(true).owner(owner).build();
+        Item unavailableDrill = Item.builder().name("Old Drill").description("Broken").available(false).owner(owner).build();
+        Item hammer = Item.builder().name("Hammer").description("Tool").available(true).owner(owner).build();
+
+        entityManager.persist(availableDrill);
+        entityManager.persist(unavailableDrill);
+        entityManager.persist(hammer);
+        entityManager.flush();
+
+        List<Item> result = itemRepository.search("drill");
+
+        assertEquals(1, result.size());
+        assertEquals("Super Drill", result.get(0).getName());
     }
 }

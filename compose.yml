@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Сервис базы данных PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: shareit-db
+    environment:
+      POSTGRES_DB: shareit
+      POSTGRES_USER: shareit
+      POSTGRES_PASSWORD: shareit
+    ports:
+      - "5432:5432" # Пробрасываем порт, чтобы можно было подключиться к БД с хоста (через DBeaver/pgAdmin)
+    volumes:
+      - postgres-data:/var/lib/postgresql/data # Сохраняем данные БД, чтобы они не пропали при перезапуске
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U shareit -d shareit" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shareit-network
+
+  # Сервис нашего Spring Boot приложения
+  app:
+    build: . # Указываем, что образ нужно собрать из текущего Dockerfile
+    container_name: shareit-app
+    ports:
+      - "8080:8080" # Пробрасываем порт приложения
+    environment:
+      # Переопределяем настройки БД из application.properties через переменные окружения.
+      # Вместо localhost указываем имя сервиса БД (db), так как они в одной docker-сети
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/shareit
+      SPRING_DATASOURCE_USERNAME: shareit
+      SPRING_DATASOURCE_PASSWORD: shareit
+    depends_on:
+      db:
+        condition: service_healthy # Ждем, пока БД полностью запустится, перед стартом приложения
+    networks:
+      - shareit-network
+
+volumes:
+  postgres-data:
+
+networks:
+  shareit-network:
+    driver: bridge

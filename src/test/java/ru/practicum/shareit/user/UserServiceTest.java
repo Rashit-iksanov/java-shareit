@@ -30,10 +30,10 @@ class UserServiceTest {
 
     @Test
     void create_shouldSaveUserWhenEmailIsUnique() {
-        UserDto dto = new UserDto(null, "Ivan", "ivan@test.com");
-        User user = new User(1L, "Ivan", "ivan@test.com");
+        UserDto dto = UserDto.builder().name("Ivan").email("ivan@test.com").build();
+        User user = User.builder().id(1L).name("Ivan").email("ivan@test.com").build();
 
-        when(userRepository.existsByEmail("ivan@test.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("ivan@test.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenReturn(user);
 
         UserDto result = userService.create(dto);
@@ -44,23 +44,23 @@ class UserServiceTest {
 
     @Test
     void create_withExistingEmail_shouldThrowException() {
-        UserDto dto = new UserDto(null, "Ivan", "ivan@test.com");
-        when(userRepository.existsByEmail("ivan@test.com")).thenReturn(true);
+        UserDto dto = UserDto.builder().name("Ivan").email("ivan@test.com").build();
+        when(userRepository.existsByEmailIgnoreCase("ivan@test.com")).thenReturn(true);
 
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> userService.create(dto));
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> userService.create(dto));
+
         assertEquals("Пользователь с таким email уже существует", exception.getReason());
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
     void update_shouldChangeFieldsCorrectly() {
-        User existing = new User(1L, "Ivan", "ivan@test.com");
-        UserDto dto = new UserDto(1L, "Ivan Petrov", "new@test.com");
-        User updated = new User(1L, "Ivan Petrov", "new@test.com");
+        User existing = User.builder().id(1L).name("Ivan").email("ivan@test.com").build();
+        UserDto dto = UserDto.builder().name("Ivan Petrov").email("new@test.com").build();
+        User updated = User.builder().id(1L).name("Ivan Petrov").email("new@test.com").build();
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(userRepository.existsByEmail("new@test.com")).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase("new@test.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenReturn(updated);
 
         UserDto result = userService.update(dto, 1L);
