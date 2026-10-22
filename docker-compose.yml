@@ -5,6 +5,7 @@ services:
     ports:
       - "9090:9090"
     environment:
+      - SERVER_ADDRESS=0.0.0.0
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/shareit
       - SPRING_DATASOURCE_USERNAME=shareit
       - SPRING_DATASOURCE_PASSWORD=shareit
