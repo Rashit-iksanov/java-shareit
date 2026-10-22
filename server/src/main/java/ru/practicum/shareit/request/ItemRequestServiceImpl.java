@@ -67,8 +67,8 @@ public class ItemRequestServiceImpl implements ItemRequestService {
         if (requests.isEmpty()) return List.of();
         List<Long> requestIds = requests.stream().map(ItemRequest::getId).toList();
         List<Item> items = itemRepository.findAllByRequestIdIn(requestIds);
-        Map<Long, List<Item>> itemsByRequest = items.stream().
-                collect(Collectors.groupingBy(item -> item.getRequest().getId()));
+        Map<Long, List<Item>> itemsByRequest = items.stream()
+                        .collect(Collectors.groupingBy(item -> item.getRequest().getId()));
         return requests.stream().map(req -> mapToDto(req, itemsByRequest.getOrDefault(req.getId(),
                 List.of()))).toList();
     }

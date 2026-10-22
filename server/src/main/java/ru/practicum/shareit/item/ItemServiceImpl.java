@@ -140,8 +140,8 @@ public class ItemServiceImpl implements ItemService {
                     "Пользователь не брал вещь в аренду или аренда еще не завершена");
         }
 
-        Comment comment = Comment.builder().text(commentDto.getText()).item(item).author(author).
-                created(now).build();
+        Comment comment = Comment.builder().text(commentDto.getText()).item(item).author(author)
+                        .created(now).build();
         return CommentMapper.toCommentDto(commentRepository.save(comment));
     }
 
