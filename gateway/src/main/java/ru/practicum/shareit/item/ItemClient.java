@@ -21,31 +21,31 @@ public class ItemClient extends BaseClient {
                 .requestFactory(() -> new HttpComponentsClientHttpRequestFactory()).build());
     }
 
-    public ResponseEntity<Object> create(long userId, ItemDto dto) {
+    public ResponseEntity<Object> create(Long userId, ItemDto dto) {
         return post("", userId, dto);
     }
 
-    public ResponseEntity<Object> update(long userId, Long itemId, ItemDto dto) {
+    public ResponseEntity<Object> update(Long userId, Long itemId, ItemDto dto) {
         return patch("/" + itemId, userId, dto);
     }
 
-    public ResponseEntity<Object> findById(long userId, Long itemId) {
+    public ResponseEntity<Object> findById(Long userId, Long itemId) {
         return get("/" + itemId, userId);
     }
 
-    public ResponseEntity<Object> findAll(long userId) {
+    public ResponseEntity<Object> findAll(Long userId) {
         return get("", userId);
     }
 
-    public ResponseEntity<Object> search(long userId, String text) {
+    public ResponseEntity<Object> search(Long userId, String text) {
         return get("/search?text={text}", userId, Map.of("text", text == null ? "" : text));
     }
 
-    public ResponseEntity<Object> delete(long userId, Long itemId) {
+    public ResponseEntity<Object> delete(Long userId, Long itemId) {
         return delete("/" + itemId, userId);
     }
 
-    public ResponseEntity<Object> addComment(long userId, Long itemId, CommentDto dto) {
+    public ResponseEntity<Object> addComment(Long userId, Long itemId, CommentDto dto) {
         return post("/" + itemId + "/comment", userId, dto);
     }
 }
